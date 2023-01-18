@@ -3,13 +3,12 @@ package lectures.part2afp
 object partialFunctions extends App {
   val aFunction = (x: Int) => x + 1 // Function1[Int, Int] === Int => Int
 
+  class FunctionaNotApplicableException extends RuntimeException
   val aFussyFunction = (x: Int) =>
     if (x == 1) 42
     else if (x == 2) 56
     else if (x == 5) 999
-    else throw new FunctionaNotApplicationException
-
-  class FunctionaNotApplicationException extends RuntimeException
+    else throw new FunctionaNotApplicableException
 
   val aNicerFussyFunction = (x: Int) =>
     x match {
@@ -60,4 +59,17 @@ object partialFunctions extends App {
     *   1. construct a PF instance yourself 2 - chatbot as PF
     */
 
+  val anAnonymousPartialFunction: PartialFunction[Int, Int] =
+    new PartialFunction[Int, Int] {
+      override def apply(v1: Int): Int = v1 + 10
+
+      override def isDefinedAt(x: Int): Boolean = x < 10
+    }
+
+  println(anAnonymousPartialFunction(1100))
+  val chatBot: PartialFunction[String, String] = {
+    case "good morning" => "morning"
+    case "good night"   => "night"
+  }
+  scala.io.Source.stdin.getLines().map(chatBot).foreach(println)
 }
