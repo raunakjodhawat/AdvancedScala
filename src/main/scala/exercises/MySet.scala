@@ -44,57 +44,59 @@ class Empty[A] extends MySet[A] {
 
   override def --(anotherSet: MySet[A]): MySet[A] = this
 
-  override def unary_! : MySet[A] = new AllInclusiveSet[A]
+  override def unary_! : MySet[A] = new PropertyBasedSet[A](_ => true)
 }
 
 class AllInclusiveSet[A] extends MySet[A] {
   override def contains(elem: A): Boolean = true
-
   override def +(elem: A): MySet[A] = this
-
   override def ++(anotherSet: MySet[A]): MySet[A] = this
-
   override def map[B](f: A => B): MySet[B] = ???
-
   override def flatMap[B](f: A => MySet[B]): MySet[B] = ???
-
   override def filter(predicate: A => Boolean): MySet[A] =
     ??? // property based set
-
   override def foreach(f: A => Unit): Unit = ???
-
   override def -(elem: A): MySet[A] = ???
-
   override def &(anotherSet: MySet[A]): MySet[A] = filter(anotherSet)
-
   override def --(anotherSet: MySet[A]): MySet[A] = filter(!anotherSet)
-
   override def unary_! : MySet[A] = new Empty[A]
 }
 
+// describes all elements of type A which satisfy a property
+// {X in A | A => property}
 class PropertyBasedSet[A](property: A => Boolean) extends MySet[A] {
-  override def contains(elem: A): Boolean = true
+  override def contains(elem: A): Boolean = property(elem)
 
-  override def +(elem: A): MySet[A] = this
+  // { x in A | property(x) } + elem = { x in A | property(x) || x == elem }
+  override def +(elem: A): MySet[A] = new PropertyBasedSet[A](x =>
+    property(x) || x == elem
+  )
 
-  override def ++(anotherSet: MySet[A]): MySet[A] = this
+  // { x in A | property(x) } ++ set = { x in A | property(x) || set contains x }
+  override def ++(anotherSet: MySet[A]): MySet[A] = new PropertyBasedSet[A](x =>
+    property(x) || anotherSet(x)
+  )
 
-  override def map[B](f: A => B): MySet[B] = ???
+  override def map[B](f: A => B): MySet[B] = politelyFail
 
-  override def flatMap[B](f: A => MySet[B]): MySet[B] = ???
+  override def flatMap[B](f: A => MySet[B]): MySet[B] = politelyFail
 
   override def filter(predicate: A => Boolean): MySet[A] =
-    ??? // property based set
+    new PropertyBasedSet[A](x => property(x) && predicate(x))
 
-  override def foreach(f: A => Unit): Unit = ???
+  override def foreach(f: A => Unit): Unit = politelyFail
 
-  override def -(elem: A): MySet[A] = ???
+  override def -(elem: A): MySet[A] = filter(x => x != elem)
 
   override def &(anotherSet: MySet[A]): MySet[A] = filter(anotherSet)
 
   override def --(anotherSet: MySet[A]): MySet[A] = filter(!anotherSet)
 
-  override def unary_! : MySet[A] = new Empty[A]
+  override def unary_! : MySet[A] = new PropertyBasedSet[A](x => !property(x))
+
+  def politelyFail = throw new IllegalArgumentException(
+    "Really deep rabbit hotel!"
+  )
 }
 
 case class Cons[A](head: A, tail: MySet[A]) extends MySet[A] {
@@ -130,7 +132,9 @@ case class Cons[A](head: A, tail: MySet[A]) extends MySet[A] {
   override def --(anotherSet: MySet[A]): MySet[A] =
     filter(!anotherSet)
 
-  override def unary_! : MySet[A] = filter(_ != ())
+  override def unary_! : MySet[A] = new PropertyBasedSet[A](x =>
+    !this.contains(x)
+  )
 }
 
 object MySet {
@@ -151,4 +155,13 @@ object MySetPlayground extends App {
   val intersectSet = MySet(1, 2, 5, 6)
   (s -- intersectSet).foreach(println)
 
+  val negative = !s
+  println(negative(2))
+  println(negative(5))
+
+  val negativeEven = negative.filter(_ % 2 == 0)
+  println(negativeEven(5))
+
+  val negativeEven5 = negativeEven + 5
+  println(negativeEven5(5))
 }
